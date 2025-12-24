@@ -1,0 +1,79 @@
+server:
+  address: 0.0.0.0
+  port: 7890
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/gateway
+    username: postgres
+    password: root
+
+  sql:
+    init:
+      mode: never
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+api-config:
+  base-url: https://sentrygateway.attendanceportal.com
+  max-retries: 3
+  backoff-factor: 1
+  timeouts:
+    connect: 10
+    read: 30
+    individual-connect: 3
+    individual-read: 10
+
+jwt-config:
+  auth-endpoint: /token
+  username: admin
+  password: password123
+
+gateway:
+  host: 0.0.0.0
+  port: 7890
+
+devices:
+  - id: ESSL_MB20_ID_1
+    name: MB20+ ID Front Gate
+    serial-number: EUF7253700215
+    mac-address: 00-17-61-11-e4-67
+    cid: "629"
+    gateway-mac-address: 02-f2-0a-31-09-90
+    enabled: true
+
+  - id: identix
+    name: ID Front Gate
+    serial-number: CGKK221063421
+    mac-address: 00-17-61-12-a4-c5
+    cid: "431"
+    gateway-mac-address: 06-EA-56-69-D6-D8
+    enabled: true
+# --- App behavior controls ---
+app:
+  retention:
+    enabled: false
+#    sentDays: 150
+#    pendingDays: 150
+#    deadDays: 150
+
+  sender:
+    enabled: true
+    workers: 10
+    maxRetries: 5
+    baseBackoffMs: 5000
+    maxBackoffMs: 300000
+    stuckProcessingMinutes: 10
+
+  alerts:
+    pendingThreshold: 5000
+    lastSuccessMaxAgeMinutes: 30
+    deadThreshold: 200
+
+admin:
+  usernameEnv: "ADMIN"
+  passwordEnv: "ADMIN_PASSWORD"
+
