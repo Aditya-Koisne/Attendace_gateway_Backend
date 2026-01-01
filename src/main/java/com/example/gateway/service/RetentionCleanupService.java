@@ -59,9 +59,7 @@ public class RetentionCleanupService {
             int deadDays = props.getRetention().getDeadDays();
             int pendingDays = props.getRetention().getPendingDays();
 
-            repo.deleteSentOlderThan(sentDays);
-            repo.deleteDeadOlderThan(deadDays);
-            repo.deletePendingOlderThan(pendingDays);
+
 
             log.info("RETENTION: cleanup run complete (sent>{}d, dead>{}d, pending>{}d)", sentDays, deadDays, pendingDays);
         } catch (Exception e) {

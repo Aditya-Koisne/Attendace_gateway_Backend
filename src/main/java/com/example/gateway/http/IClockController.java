@@ -1,62 +1,43 @@
 package com.example.gateway.http;
 
-import com.example.gateway.service.DevicePresenceService;
+import com.example.gateway.repo.DeviceRepository;
 import com.example.gateway.service.IngestService;
-import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
+
 @RestController
+@RequestMapping("/iclock")
 public class IClockController {
 
   private static final Logger log = LoggerFactory.getLogger(IClockController.class);
 
-  private final IngestService ingest;
-  private final DevicePresenceService presence;
+  private final DeviceRepository deviceRepo;
+  private final IngestService ingestService;
 
-  public IClockController(IngestService ingest, DevicePresenceService presence) {
-    this.ingest = ingest;
-    this.presence = presence;
+  public IClockController(DeviceRepository deviceRepo, IngestService ingestService) {
+    this.deviceRepo = deviceRepo;
+    this.ingestService = ingestService;
   }
 
-  @RequestMapping(
-          value = {"/iclock/cdata.aspx", "/iclock/cdata"},
-          method = {RequestMethod.GET, RequestMethod.POST},
-          produces = MediaType.TEXT_PLAIN_VALUE
-  )
-  public String cdata(HttpServletRequest request, @RequestBody(required = false) String body) {
-    String sn = firstNonNull(request.getParameter("SN"), request.getParameter("sn"), "UNKNOWN");
-    String table = request.getParameter("table");
+  @PostMapping("/cdata")
+  public String ingest(
+          @RequestParam("SN") String sn,
+          @RequestBody(required = false) String body
+  ) {
+    log.info("DEVICE HIT: SN={} BODY=\n{}", sn, body);
 
-    // ✅ Mark presence for GET + POST traffic
-    presence.markSeen(sn, request.getRemoteAddr());
+    // ✅ update last seen
+    deviceRepo.findById(sn).ifPresent(d -> {
+      deviceRepo.save(d);
+      log.debug("Updated last seen for device: {}", sn);
+    });
 
-    if (table != null && table.equalsIgnoreCase("ATTLOG")) {
-      ingest.ingestAttlog(sn, body == null ? "" : body);
-    }
-    return "OK";
-  }
-
-  @GetMapping(value = {"/iclock/getrequest.aspx", "/iclock/getrequest"}, produces = MediaType.TEXT_PLAIN_VALUE)
-  public String getrequest(HttpServletRequest request) {
-    String sn = firstNonNull(request.getParameter("SN"), request.getParameter("sn"), "UNKNOWN");
-
-    // ✅ Mark presence for device heartbeat calls
-    presence.markSeen(sn, request.getRemoteAddr());
+    // ✅ ingest the data
+    ingestService.ingestAttlog(sn, body);
 
     return "OK";
-  }
-
-  @GetMapping(value = "/healthz", produces = MediaType.TEXT_PLAIN_VALUE)
-  public String healthz() {
-    return "OK";
-  }
-
-  private static String firstNonNull(String a, String b, String def) {
-    if (a != null && !a.isBlank()) return a;
-    if (b != null && !b.isBlank()) return b;
-    return def;
   }
 }

@@ -1,5 +1,4 @@
 server:
-  address: 0.0.0.0
   port: 7890
 
 spring:
@@ -7,15 +6,16 @@ spring:
     url: jdbc:postgresql://localhost:5432/gateway
     username: postgres
     password: root
+    driver-class-name: org.postgresql.Driver
 
-  sql:
-    init:
-      mode: never
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
 
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
-    baseline-on-migrate: true
+
 
 api-config:
   base-url: https://sentrygateway.attendanceportal.com
@@ -36,29 +36,12 @@ gateway:
   host: 0.0.0.0
   port: 7890
 
-devices:
-  - id: ESSL_MB20_ID_1
-    name: MB20+ ID Front Gate
-    serial-number: EUF7253700215
-    mac-address: 00-17-61-11-e4-67
-    cid: "629"
-    gateway-mac-address: 02-f2-0a-31-09-90
-    enabled: true
 
-  - id: identix
-    name: ID Front Gate
-    serial-number: CGKK221063421
-    mac-address: 00-17-61-12-a4-c5
-    cid: "431"
-    gateway-mac-address: 06-EA-56-69-D6-D8
-    enabled: true
-# --- App behavior controls ---
+
 app:
   retention:
     enabled: false
-#    sentDays: 150
-#    pendingDays: 150
-#    deadDays: 150
+
 
   sender:
     enabled: true
