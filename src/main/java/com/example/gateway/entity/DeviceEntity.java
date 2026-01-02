@@ -42,6 +42,16 @@ public class DeviceEntity {
   @Column(name = "updated_at", nullable = false)
   private Instant updatedAt;
 
+
+  @Column(name = "sentry_status")
+  private String sentryStatus = "UNKNOWN";
+
+  @Column(name = "sentry_error")
+  private String sentryError;
+
+  @Column(name = "sentry_last_check")
+  private Instant sentryLastCheck;
+
   @PrePersist
   void onCreate() {
     Instant now = Instant.now();

@@ -45,7 +45,7 @@ app:
 
   sender:
     enabled: true
-    workers: 10
+    workers: 1
     maxRetries: 5
     baseBackoffMs: 5000
     maxBackoffMs: 300000

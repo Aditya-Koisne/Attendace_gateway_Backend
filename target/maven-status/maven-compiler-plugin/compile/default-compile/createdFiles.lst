@@ -1,5 +1,6 @@
 com\example\gateway\config\AppProperties$Alerts.class
 com\example\gateway\service\SenderService.class
+com\example\gateway\http\AdminQueueController.class
 com\example\gateway\http\AdminPunchController.class
 com\example\gateway\service\IngestService$Parsed.class
 com\example\gateway\config\ApiConfigProperties$Timeouts.class
@@ -17,8 +18,10 @@ com\example\gateway\model\DeviceDto.class
 com\example\gateway\repo\PunchBatchInserter$PunchInsertRow.class
 com\example\gateway\config\AdminUserConfig.class
 com\example\gateway\config\RestClientConfig.class
+com\example\gateway\service\QueueHealthService.class
 com\example\gateway\config\AppProperties$Sender.class
 com\example\gateway\config\AppProperties.class
+com\example\gateway\service\DeadPunchReplayService.class
 com\example\gateway\service\SenderService$1.class
 com\example\gateway\Application.class
 com\example\gateway\config\JwtConfigProperties.class
@@ -28,10 +31,10 @@ com\example\gateway\http\IClockController.class
 com\example\gateway\service\IngestService.class
 com\example\gateway\http\AdminDeviceStatusController.class
 com\example\gateway\service\SentryClient$Result.class
+com\example\gateway\model\QueueHealthDto.class
 com\example\gateway\repo\DeviceRepository.class
 com\example\gateway\service\DevicePresenceService.class
 com\example\gateway\config\ApiConfigProperties.class
 com\example\gateway\http\AdminDeviceController.class
 com\example\gateway\service\RetentionCleanupService.class
 com\example\gateway\config\SecurityConfig.class
-com\example\gateway\model\MetricsResponse.class

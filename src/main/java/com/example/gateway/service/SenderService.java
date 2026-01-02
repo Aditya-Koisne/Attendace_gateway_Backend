@@ -5,7 +5,6 @@ import com.example.gateway.entity.PunchEntity;
 import com.example.gateway.repo.DeviceRepository;
 import com.example.gateway.repo.PunchRepository;
 import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -20,6 +19,7 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @Service
 public class SenderService {
+
   private final AppProperties props;
   private final PunchRepository punchRepo;
   private final DeviceRepository deviceRepo;
@@ -29,39 +29,45 @@ public class SenderService {
   private final ScheduledExecutorService exec;
   private final Random rnd = new Random();
 
-  public SenderService(AppProperties props, PunchRepository punchRepo, DeviceRepository deviceRepo,
-                       TokenService tokenService, SentryClient sentryClient, PlatformTransactionManager txManager) {
+  public SenderService(
+          AppProperties props,
+          PunchRepository punchRepo,
+          DeviceRepository deviceRepo,
+          TokenService tokenService,
+          SentryClient sentryClient,
+          PlatformTransactionManager txManager
+  ) {
     this.props = props;
     this.punchRepo = punchRepo;
     this.deviceRepo = deviceRepo;
     this.tokenService = tokenService;
     this.sentryClient = sentryClient;
     this.tx = new TransactionTemplate(txManager);
-    this.exec = Executors.newScheduledThreadPool(Math.max(2, props.getSender().getWorkers() + 2));
+    this.exec = Executors.newScheduledThreadPool(1); // ✅ FORCE SINGLE WORKER
   }
 
   @PostConstruct
   public void start() {
     if (!props.getSender().isEnabled()) return;
-    int workers = Math.max(1, props.getSender().getWorkers());
-    for (int i = 0; i < workers; i++) {
-      exec.scheduleWithFixedDelay(this::processLoop, 500, 200, TimeUnit.MILLISECONDS);
-    }
+
+    exec.scheduleWithFixedDelay(this::processLoop, 500, 200, TimeUnit.MILLISECONDS);
     exec.scheduleWithFixedDelay(this::unstuckLoop, 60, 60, TimeUnit.SECONDS);
   }
 
   private void processLoop() {
     try {
-      tx.executeWithoutResult(status -> processOne());
+      tx.executeWithoutResult(s -> processOne());
     } catch (Exception e) {
-      log.warn("Sender loop error: {}", e.getMessage());
+      log.error("Sender loop error", e);
     }
   }
 
   private void processOne() {
     Long id = punchRepo.findNextPendingIdForUpdate(Instant.now());
     if (id == null) return;
-    punchRepo.markProcessing(id);
+
+    // ✅ FIX: ensure safe transition
+    if (punchRepo.markProcessing(id) == 0) return;
 
     PunchEntity rec = punchRepo.findById(id).orElse(null);
     if (rec == null) return;
@@ -74,15 +80,16 @@ public class SenderService {
 
     String token = tokenService.getTokenOrNull();
     if (token == null) {
-      scheduleRetry(rec, "No Token");
+      scheduleRetry(rec, "No token");
       return;
     }
 
     SentryClient.Result res = sentryClient.send(dev.get(), rec, token);
+
     switch (res) {
       case OK -> punchRepo.markSent(id);
-      case DEAD -> punchRepo.markDead(id, "Sentry Rejected");
-      case RETRY -> scheduleRetry(rec, "API Error");
+      case DEAD -> punchRepo.markDead(id, "Sentry rejected");
+      case RETRY -> scheduleRetry(rec, "Sentry API retry");
     }
   }
 
@@ -91,7 +98,11 @@ public class SenderService {
       punchRepo.markRetryDead(rec.getId(), error);
     } else {
       long delay = computeBackoff(rec.getRetryCount());
-      punchRepo.markRetryPending(rec.getId(), error, Instant.now().plusMillis(delay));
+      punchRepo.markRetryPending(
+              rec.getId(),
+              error,
+              Instant.now().plusMillis(delay)
+      );
     }
   }
 
@@ -99,11 +110,13 @@ public class SenderService {
     long base = props.getSender().getBaseBackoffMs();
     long max = props.getSender().getMaxBackoffMs();
     long exp = base * (1L << retries);
-    return Math.min(exp + rnd.nextInt((int)base), max);
+    return Math.min(exp + rnd.nextInt((int) base), max);
   }
 
   private void unstuckLoop() {
-    Instant cutoff = Instant.now().minus(props.getSender().getStuckProcessingMinutes(), java.time.temporal.ChronoUnit.MINUTES);
+    Instant cutoff = Instant.now()
+            .minus(props.getSender().getStuckProcessingMinutes(),
+                    java.time.temporal.ChronoUnit.MINUTES);
     punchRepo.releaseStuckProcessing(cutoff);
   }
 }

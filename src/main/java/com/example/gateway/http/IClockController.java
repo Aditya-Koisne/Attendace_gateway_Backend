@@ -7,7 +7,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
-
 @RestController
 @RequestMapping("/iclock")
 public class IClockController {
@@ -22,22 +21,49 @@ public class IClockController {
     this.ingestService = ingestService;
   }
 
-  @PostMapping("/cdata")
-  public String ingest(
-          @RequestParam("SN") String sn,
+  // ---------- CDATA (POST + GET) ----------
+  @RequestMapping(
+          value = {"/cdata", "/cdata.aspx"},
+          method = {RequestMethod.GET, RequestMethod.POST}
+  )
+  public String cdata(
+          @RequestParam(value = "SN", required = false) String sn,
+          @RequestParam(value = "sn", required = false) String snLower,
+          @RequestParam(value = "table", required = false) String table,
+          @RequestParam(value = "Stamp", required = false) String stamp,
+          @RequestParam(value = "options", required = false) String options,
           @RequestBody(required = false) String body
   ) {
-    log.info("DEVICE HIT: SN={} BODY=\n{}", sn, body);
 
-    // ✅ update last seen
-    deviceRepo.findById(sn).ifPresent(d -> {
-      deviceRepo.save(d);
-      log.debug("Updated last seen for device: {}", sn);
-    });
+    String serial = (sn != null) ? sn : snLower;
+    if (serial == null) serial = "UNKNOWN";
 
-    // ✅ ingest the data
-    ingestService.ingestAttlog(sn, body);
+    log.info(
+            "ICLOCK CDATA: SN={} table={} stamp={} options={} bodyLen={}",
+            serial, table, stamp, options, body == null ? 0 : body.length()
+    );
 
+    deviceRepo.findById(serial).ifPresent(deviceRepo::save);
+
+    // ONLY ingest when ATTLOG
+    if ("ATTLOG".equalsIgnoreCase(table) && body != null && !body.isBlank()) {
+      ingestService.ingestAttlog(serial, body);
+    }
+
+    return "OK";
+  }
+
+  // ---------- GETREQUEST ----------
+  @RequestMapping(
+          value = {"/getrequest", "/getrequest.aspx"},
+          method = RequestMethod.GET
+  )
+  public String getRequest(
+          @RequestParam(value = "SN", required = false) String sn,
+          @RequestParam(value = "sn", required = false) String snLower
+  ) {
+    String serial = (sn != null) ? sn : snLower;
+    log.info("ICLOCK GETREQUEST: SN={}", serial);
     return "OK";
   }
 }
