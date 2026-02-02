@@ -3,14 +3,14 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/gateway
+    url: jdbc:postgresql://db:5432/gateway
     username: postgres
     password: root
     driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
@@ -60,3 +60,6 @@ admin:
   usernameEnv: "ADMIN"
   passwordEnv: "ADMIN_PASSWORD"
 
+logging:
+  level:
+    com.example.gateway.http.IClockController: DEBUG

@@ -6,6 +6,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface PunchRepository extends JpaRepository<PunchEntity, Long> {
@@ -59,27 +60,46 @@ public interface PunchRepository extends JpaRepository<PunchEntity, Long> {
 
   // ================= FINAL STATES =================
   @Modifying
-  @Query("""
-    UPDATE PunchEntity p
-    SET p.status = 'sent',
-        p.sentAt = CURRENT_TIMESTAMP,
-        p.processingStartedAt = null,
-        p.nextAttemptAt = null
-    WHERE p.id = :id
-    """)
+  @Query(value = """
+UPDATE punches
+SET status = 'sent',
+    sent_at = NOW(),
+    processing_started_at = NULL,
+    next_attempt_at = TIMESTAMPTZ '9999-12-31 23:59:59+00'
+WHERE id = :id
+""", nativeQuery = true)
   void markSent(@Param("id") Long id);
+
+
 
   // ✅ FIX: clear scheduling fields
   @Modifying
-  @Query("""
-    UPDATE PunchEntity p
-    SET p.status = 'dead',
-        p.lastError = :error,
-        p.processingStartedAt = null,
-        p.nextAttemptAt = null
-    WHERE p.id = :id
-    """)
+  @Query(value = """
+UPDATE punches
+SET status = 'dead',
+    last_error = :error,
+    processing_started_at = NULL,
+    next_attempt_at = TIMESTAMPTZ '9999-12-31 23:59:59+00'
+WHERE id = :id
+""", nativeQuery = true)
   void markDead(@Param("id") Long id, @Param("error") String error);
+
+
+  // ================= IN/OUT HELPER (GLOBAL) =================
+  @Query(value = """
+  SELECT inout_status
+  FROM punches
+  WHERE device_sn = :sn
+    AND emp_code = :emp
+    AND ts < :before
+  ORDER BY ts DESC
+  LIMIT 1
+  """, nativeQuery = true)
+  String lastInOutBefore(
+          @Param("sn") String sn,
+          @Param("emp") String emp,
+          @Param("before") LocalDateTime before
+  );
 
   // ================= RETRY =================
   @Modifying
@@ -100,16 +120,17 @@ public interface PunchRepository extends JpaRepository<PunchEntity, Long> {
 
   // ✅ FIX: terminal dead state
   @Modifying
-  @Query("""
-    UPDATE PunchEntity p
-    SET p.status = 'dead',
-        p.retryCount = p.retryCount + 1,
-        p.lastError = :error,
-        p.processingStartedAt = null,
-        p.nextAttemptAt = null
-    WHERE p.id = :id
-    """)
+  @Query(value = """
+UPDATE punches
+SET status = 'dead',
+    retry_count = retry_count + 1,
+    last_error = :error,
+    processing_started_at = NULL,
+    next_attempt_at = TIMESTAMPTZ '9999-12-31 23:59:59+00'
+WHERE id = :id
+""", nativeQuery = true)
   void markRetryDead(@Param("id") Long id, @Param("error") String error);
+
 
   // ================= UNSTUCK =================
   @Modifying

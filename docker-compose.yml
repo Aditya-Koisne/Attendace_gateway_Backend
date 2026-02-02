@@ -1,0 +1,43 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    container_name: gateway-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gateway
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+    ports:
+      - "5432:5432"   # optional (remove in production)
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    image: attendance-gateway-backend-app
+    container_name: gateway-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "7890:7890"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/gateway
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: root
+
+      ADMIN: admin
+      ADMIN_PASSWORD: password123
+    volumes:
+      - ./logs:/app/logs   # optional (if you log to files)
+    command: ["java", "-jar", "/app/app.jar"]
+
+volumes:
+  postgres_data:
